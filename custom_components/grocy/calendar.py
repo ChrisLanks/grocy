@@ -19,7 +19,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_API_KEY,
-    CONF_CALENDAR_FIX_DATETIME_FOR_ADDON,
+    CONF_CALENDAR_FIX_TIMEZONE,
     CONF_CALENDAR_SYNC_INTERVAL,
     CONF_PORT,
     CONF_URL,
@@ -65,8 +65,8 @@ class GrocyCalendarEntity(CalendarEntity):
         self._sync_interval_minutes: int = config_entry.data.get(
             CONF_CALENDAR_SYNC_INTERVAL, DEFAULT_CALENDAR_SYNC_INTERVAL
         )
-        self._fix_datetime_for_addon: bool = config_entry.data.get(
-            CONF_CALENDAR_FIX_DATETIME_FOR_ADDON, True
+        self._fix_timezone: bool = config_entry.data.get(
+            CONF_CALENDAR_FIX_TIMEZONE, True
         )
         self._unsub_update: Callable[[], None] | None = None
         self._last_update: datetime | None = None
@@ -294,9 +294,9 @@ class GrocyCalendarEntity(CalendarEntity):
                         uid = str(component.get("uid", ""))
                         
                         _LOGGER.debug(
-                            "Parsing event '%s': fix_datetime_for_addon=%s",
+                            "Parsing event '%s': fix_timezone=%s",
                             summary,
-                            self._fix_datetime_for_addon,
+                            self._fix_timezone,
                         )
 
                         if start:
@@ -328,31 +328,31 @@ class GrocyCalendarEntity(CalendarEntity):
                                         or str(event_start.tzinfo) == "UTC"
                                         or (hasattr(event_start.tzinfo, "zone") and event_start.tzinfo.zone == "UTC")
                                     )
-                                    if self._fix_datetime_for_addon and is_utc:
+                                    if self._fix_timezone and is_utc:
                                         # Fix for Grocy addon: Grocy is sending local times marked as UTC
                                         # Treat the UTC time as if it's already in local timezone
                                         event_start = event_start.replace(
                                             tzinfo=local_tz
                                         )
                                         _LOGGER.debug(
-                                            "Event '%s': Fix datetime enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s), fix_datetime_for_addon=%s",
+                                            "Event '%s': Fix timezone enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s), fix_timezone=%s",
                                             summary,
                                             original_start,
                                             original_tz,
                                             event_start,
                                             event_start.tzinfo,
-                                            self._fix_datetime_for_addon,
+                                            self._fix_timezone,
                                         )
                                     else:
                                         event_start = dt_util.as_local(event_start)
                                         _LOGGER.debug(
-                                            "Event '%s': Standard timezone conversion: %s (tz: %s) -> %s (tz: %s), fix_datetime_for_addon=%s",
+                                            "Event '%s': Standard timezone conversion: %s (tz: %s) -> %s (tz: %s), fix_timezone=%s",
                                             summary,
                                             original_start,
                                             original_tz,
                                             event_start,
                                             event_start.tzinfo,
-                                            self._fix_datetime_for_addon,
+                                            self._fix_timezone,
                                         )
                             else:
                                 # Date-only events (all-day) - convert to datetime at start of day in local timezone
@@ -383,29 +383,29 @@ class GrocyCalendarEntity(CalendarEntity):
                                             or str(event_end.tzinfo) == "UTC"
                                             or (hasattr(event_end.tzinfo, "zone") and event_end.tzinfo.zone == "UTC")
                                         )
-                                        if self._fix_datetime_for_addon and is_end_utc:
+                                        if self._fix_timezone and is_end_utc:
                                             # Fix for Grocy addon: Grocy is sending local times marked as UTC
                                             # Treat the UTC time as if it's already in local timezone
                                             event_end = event_end.replace(tzinfo=local_tz)
                                             _LOGGER.debug(
-                                                "Event '%s' (end): Fix datetime enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s), fix_datetime_for_addon=%s",
+                                                "Event '%s' (end): Fix timezone enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s), fix_timezone=%s",
                                                 summary,
                                                 original_end,
                                                 original_end_tz,
                                                 event_end,
                                                 event_end.tzinfo,
-                                                self._fix_datetime_for_addon,
+                                                self._fix_timezone,
                                             )
                                         else:
                                             event_end = dt_util.as_local(event_end)
                                             _LOGGER.debug(
-                                                "Event '%s' (end): Standard timezone conversion: %s (tz: %s) -> %s (tz: %s), fix_datetime_for_addon=%s",
+                                                "Event '%s' (end): Standard timezone conversion: %s (tz: %s) -> %s (tz: %s), fix_timezone=%s",
                                                 summary,
                                                 original_end,
                                                 original_end_tz,
                                                 event_end,
                                                 event_end.tzinfo,
-                                                self._fix_datetime_for_addon,
+                                                self._fix_timezone,
                                             )
                                 else:
                                     # Date-only end - for all-day events, end date is exclusive

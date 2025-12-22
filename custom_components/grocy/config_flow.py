@@ -12,7 +12,7 @@ from pygrocy2.grocy import Grocy
 
 from .const import (
     CONF_API_KEY,
-    CONF_CALENDAR_FIX_DATETIME_FOR_ADDON,
+    CONF_CALENDAR_FIX_TIMEZONE,
     CONF_CALENDAR_SYNC_INTERVAL,
     CONF_PORT,
     CONF_URL,
@@ -36,7 +36,7 @@ async def async_migrate_entry(
         # Migrate from version 1 to 2: add calendar_sync_interval with default
         new_data = {**config_entry.data}
         new_data[CONF_CALENDAR_SYNC_INTERVAL] = DEFAULT_CALENDAR_SYNC_INTERVAL
-        new_data[CONF_CALENDAR_FIX_DATETIME_FOR_ADDON] = True
+        new_data[CONF_CALENDAR_FIX_TIMEZONE] = True
 
         hass.config_entries.async_update_entry(
             config_entry, data=new_data, version=2
@@ -176,9 +176,9 @@ class GrocyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     user_input[CONF_CALENDAR_SYNC_INTERVAL] = (
                         DEFAULT_CALENDAR_SYNC_INTERVAL
                     )
-                # Set default fix datetime for addon if not provided
-                if CONF_CALENDAR_FIX_DATETIME_FOR_ADDON not in user_input:
-                    user_input[CONF_CALENDAR_FIX_DATETIME_FOR_ADDON] = True
+                # Set default fix timezone if not provided
+                if CONF_CALENDAR_FIX_TIMEZONE not in user_input:
+                    user_input[CONF_CALENDAR_FIX_TIMEZONE] = True
                 return self.async_create_entry(title=NAME, data=user_input)
 
             self._errors["base"] = "auth"
@@ -205,7 +205,7 @@ class GrocyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         ] = int
         data_schema[
             vol.Optional(
-                CONF_CALENDAR_FIX_DATETIME_FOR_ADDON, default=True
+                CONF_CALENDAR_FIX_TIMEZONE, default=True
             )
         ] = bool
         _LOGGER.debug("config form")
@@ -275,8 +275,8 @@ class GrocyOptionsFlowHandler(config_entries.OptionsFlow):
             new_data[CONF_PORT] = user_input[CONF_PORT]
             new_data[CONF_VERIFY_SSL] = user_input[CONF_VERIFY_SSL]
             new_data[CONF_CALENDAR_SYNC_INTERVAL] = user_input[CONF_CALENDAR_SYNC_INTERVAL]
-            new_data[CONF_CALENDAR_FIX_DATETIME_FOR_ADDON] = user_input.get(
-                CONF_CALENDAR_FIX_DATETIME_FOR_ADDON, True
+            new_data[CONF_CALENDAR_FIX_TIMEZONE] = user_input.get(
+                CONF_CALENDAR_FIX_TIMEZONE, True
             )
 
             # Update the config entry
@@ -343,10 +343,10 @@ class GrocyOptionsFlowHandler(config_entries.OptionsFlow):
         ] = int
         data_schema[
             vol.Optional(
-                CONF_CALENDAR_FIX_DATETIME_FOR_ADDON,
+                CONF_CALENDAR_FIX_TIMEZONE,
                 default=user_input.get(
-                    CONF_CALENDAR_FIX_DATETIME_FOR_ADDON,
-                    self.config_entry.data.get(CONF_CALENDAR_FIX_DATETIME_FOR_ADDON, True),
+                    CONF_CALENDAR_FIX_TIMEZONE,
+                    self.config_entry.data.get(CONF_CALENDAR_FIX_TIMEZONE, True),
                 ),
             )
         ] = bool

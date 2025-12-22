@@ -73,9 +73,9 @@ If you use the [official Grocy add-on](https://github.com/hassio-addons/addon-gr
   - Default: `5` minutes
   - The calendar includes all events: chores, tasks, meal plans, products, etc.
   - Lower values provide more frequent updates but may increase API usage
-- **Fix datetime for addon**: Workaround for Grocy addon timezone issue
+- **Fix timezone for calendar**: Workaround for Grocy timezone issue
   - Default: `True` (enabled)
-  - The Grocy addon may send local times marked as UTC in the iCal feed
+  - Grocy may send local times marked as UTC in the iCal feed
   - When enabled, UTC times from Grocy are treated as local time (no conversion)
   - Disable this if your Grocy instance correctly sends UTC times
 
@@ -118,7 +118,7 @@ The calendar entity (`calendar.grocy_calendar`) provides a Home Assistant calend
 
 The calendar automatically syncs at the interval configured during setup (default: 5 minutes). You can view and interact with the calendar through Home Assistant's calendar interface, use it in automations, and integrate it with other calendar integrations.
 
-**Note on Timezone Handling:** The Grocy addon may send local times marked as UTC in the iCal feed. The "Fix datetime for addon" option (enabled by default) addresses this by treating UTC times as local time. If your Grocy instance correctly sends UTC times, you can disable this option in the integration configuration.
+**Note on Timezone Handling:** Grocy may send local times marked as UTC in the iCal feed. The "Fix timezone for calendar" option (enabled by default) addresses this by treating UTC times as local time. If your Grocy instance correctly sends UTC times, you can disable this option in the integration configuration.
 
 
 # Services
