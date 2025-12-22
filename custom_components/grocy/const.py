@@ -20,6 +20,7 @@ CONF_PORT: Final = "port"
 CONF_API_KEY: Final = "api_key"
 CONF_VERIFY_SSL: Final = "verify_ssl"
 CONF_CALENDAR_SYNC_INTERVAL: Final = "calendar_sync_interval"
+CONF_CALENDAR_FIX_DATETIME_FOR_ADDON: Final = "calendar_fix_datetime_for_addon"
 
 STARTUP_MESSAGE: Final = f"""
 -------------------------------------------------------------------

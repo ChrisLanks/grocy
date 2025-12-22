@@ -19,6 +19,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_API_KEY,
+    CONF_CALENDAR_FIX_DATETIME_FOR_ADDON,
     CONF_CALENDAR_SYNC_INTERVAL,
     CONF_PORT,
     CONF_URL,
@@ -63,6 +64,9 @@ class GrocyCalendarEntity(CalendarEntity):
         self._events: list[CalendarEvent] = []
         self._sync_interval_minutes: int = config_entry.data.get(
             CONF_CALENDAR_SYNC_INTERVAL, DEFAULT_CALENDAR_SYNC_INTERVAL
+        )
+        self._fix_datetime_for_addon: bool = config_entry.data.get(
+            CONF_CALENDAR_FIX_DATETIME_FOR_ADDON, True
         )
         self._unsub_update: Callable[[], None] | None = None
         self._last_update: datetime | None = None
@@ -310,8 +314,18 @@ class GrocyCalendarEntity(CalendarEntity):
                                 else:
                                     # Has timezone info - convert to local timezone
                                     # This handles UTC or other timezones from Grocy
-                                    original_start = event_start
-                                    event_start = dt_util.as_local(event_start)
+                                    # Grocy addon sends local times marked as UTC, so we fix it
+                                    if (
+                                        self._fix_datetime_for_addon
+                                        and event_start.tzinfo == timezone.utc
+                                    ):
+                                        # Fix for Grocy addon: Grocy is sending local times marked as UTC
+                                        # Treat the UTC time as if it's already in local timezone
+                                        event_start = event_start.replace(
+                                            tzinfo=local_tz
+                                        )
+                                    else:
+                                        event_start = dt_util.as_local(event_start)
                             else:
                                 # Date-only events (all-day) - convert to datetime at start of day in local timezone
                                 event_start = datetime.combine(
@@ -333,7 +347,16 @@ class GrocyCalendarEntity(CalendarEntity):
                                     else:
                                         # Has timezone info - convert to local timezone
                                         # This handles UTC or other timezones from Grocy
-                                        event_end = dt_util.as_local(event_end)
+                                        # Grocy addon sends local times marked as UTC, so we fix it
+                                        if (
+                                            self._fix_datetime_for_addon
+                                            and event_end.tzinfo == timezone.utc
+                                        ):
+                                            # Fix for Grocy addon: Grocy is sending local times marked as UTC
+                                            # Treat the UTC time as if it's already in local timezone
+                                            event_end = event_end.replace(tzinfo=local_tz)
+                                        else:
+                                            event_end = dt_util.as_local(event_end)
                                 else:
                                     # Date-only end - for all-day events, end date is exclusive
                                     # In iCal, if an event is on Dec 21, end date is Dec 22
