@@ -323,22 +323,25 @@ class GrocyCalendarEntity(CalendarEntity):
                                     # Grocy addon sends local times marked as UTC, so we fix it
                                     original_start = event_start
                                     original_tz = event_start.tzinfo
-                                    if (
-                                        self._fix_datetime_for_addon
-                                        and event_start.tzinfo == timezone.utc
-                                    ):
+                                    is_utc = (
+                                        event_start.tzinfo == timezone.utc
+                                        or str(event_start.tzinfo) == "UTC"
+                                        or (hasattr(event_start.tzinfo, "zone") and event_start.tzinfo.zone == "UTC")
+                                    )
+                                    if self._fix_datetime_for_addon and is_utc:
                                         # Fix for Grocy addon: Grocy is sending local times marked as UTC
                                         # Treat the UTC time as if it's already in local timezone
                                         event_start = event_start.replace(
                                             tzinfo=local_tz
                                         )
                                         _LOGGER.debug(
-                                            "Event '%s': Fix datetime enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s)",
+                                            "Event '%s': Fix datetime enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s), fix_datetime_for_addon=%s",
                                             summary,
                                             original_start,
                                             original_tz,
                                             event_start,
                                             event_start.tzinfo,
+                                            self._fix_datetime_for_addon,
                                         )
                                     else:
                                         event_start = dt_util.as_local(event_start)
@@ -375,20 +378,23 @@ class GrocyCalendarEntity(CalendarEntity):
                                         # Grocy addon sends local times marked as UTC, so we fix it
                                         original_end = event_end
                                         original_end_tz = event_end.tzinfo
-                                        if (
-                                            self._fix_datetime_for_addon
-                                            and event_end.tzinfo == timezone.utc
-                                        ):
+                                        is_end_utc = (
+                                            event_end.tzinfo == timezone.utc
+                                            or str(event_end.tzinfo) == "UTC"
+                                            or (hasattr(event_end.tzinfo, "zone") and event_end.tzinfo.zone == "UTC")
+                                        )
+                                        if self._fix_datetime_for_addon and is_end_utc:
                                             # Fix for Grocy addon: Grocy is sending local times marked as UTC
                                             # Treat the UTC time as if it's already in local timezone
                                             event_end = event_end.replace(tzinfo=local_tz)
                                             _LOGGER.debug(
-                                                "Event '%s' (end): Fix datetime enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s)",
+                                                "Event '%s' (end): Fix datetime enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s), fix_datetime_for_addon=%s",
                                                 summary,
                                                 original_end,
                                                 original_end_tz,
                                                 event_end,
                                                 event_end.tzinfo,
+                                                self._fix_datetime_for_addon,
                                             )
                                         else:
                                             event_end = dt_util.as_local(event_end)
