@@ -292,6 +292,12 @@ class GrocyCalendarEntity(CalendarEntity):
                         description = str(component.get("description", ""))
                         location = str(component.get("location", ""))
                         uid = str(component.get("uid", ""))
+                        
+                        _LOGGER.debug(
+                            "Parsing event '%s': fix_datetime_for_addon=%s",
+                            summary,
+                            self._fix_datetime_for_addon,
+                        )
 
                         if start:
                             # Check if this is a date-only (all-day) event
@@ -315,6 +321,8 @@ class GrocyCalendarEntity(CalendarEntity):
                                     # Has timezone info - convert to local timezone
                                     # This handles UTC or other timezones from Grocy
                                     # Grocy addon sends local times marked as UTC, so we fix it
+                                    original_start = event_start
+                                    original_tz = event_start.tzinfo
                                     if (
                                         self._fix_datetime_for_addon
                                         and event_start.tzinfo == timezone.utc
@@ -324,8 +332,25 @@ class GrocyCalendarEntity(CalendarEntity):
                                         event_start = event_start.replace(
                                             tzinfo=local_tz
                                         )
+                                        _LOGGER.debug(
+                                            "Event '%s': Fix datetime enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s)",
+                                            summary,
+                                            original_start,
+                                            original_tz,
+                                            event_start,
+                                            event_start.tzinfo,
+                                        )
                                     else:
                                         event_start = dt_util.as_local(event_start)
+                                        _LOGGER.debug(
+                                            "Event '%s': Standard timezone conversion: %s (tz: %s) -> %s (tz: %s), fix_datetime_for_addon=%s",
+                                            summary,
+                                            original_start,
+                                            original_tz,
+                                            event_start,
+                                            event_start.tzinfo,
+                                            self._fix_datetime_for_addon,
+                                        )
                             else:
                                 # Date-only events (all-day) - convert to datetime at start of day in local timezone
                                 event_start = datetime.combine(
@@ -348,6 +373,8 @@ class GrocyCalendarEntity(CalendarEntity):
                                         # Has timezone info - convert to local timezone
                                         # This handles UTC or other timezones from Grocy
                                         # Grocy addon sends local times marked as UTC, so we fix it
+                                        original_end = event_end
+                                        original_end_tz = event_end.tzinfo
                                         if (
                                             self._fix_datetime_for_addon
                                             and event_end.tzinfo == timezone.utc
@@ -355,8 +382,25 @@ class GrocyCalendarEntity(CalendarEntity):
                                             # Fix for Grocy addon: Grocy is sending local times marked as UTC
                                             # Treat the UTC time as if it's already in local timezone
                                             event_end = event_end.replace(tzinfo=local_tz)
+                                            _LOGGER.debug(
+                                                "Event '%s' (end): Fix datetime enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s)",
+                                                summary,
+                                                original_end,
+                                                original_end_tz,
+                                                event_end,
+                                                event_end.tzinfo,
+                                            )
                                         else:
                                             event_end = dt_util.as_local(event_end)
+                                            _LOGGER.debug(
+                                                "Event '%s' (end): Standard timezone conversion: %s (tz: %s) -> %s (tz: %s), fix_datetime_for_addon=%s",
+                                                summary,
+                                                original_end,
+                                                original_end_tz,
+                                                event_end,
+                                                event_end.tzinfo,
+                                                self._fix_datetime_for_addon,
+                                            )
                                 else:
                                     # Date-only end - for all-day events, end date is exclusive
                                     # In iCal, if an event is on Dec 21, end date is Dec 22
