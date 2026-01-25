@@ -9,7 +9,7 @@ from datetime import UTC, date, datetime, timedelta
 import icalendar
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Event, HomeAssistant
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
@@ -73,7 +73,6 @@ class GrocyCalendarEntity(CalendarEntity):
             CONF_CALENDAR_FIX_TIMEZONE, True
         )
         self._unsub_update: Callable[[], None] | None = None
-        self._unsub_registry: Callable[[], None] | None = None
         self._last_update: datetime | None = None
 
         # Entity attributes
@@ -103,10 +102,6 @@ class GrocyCalendarEntity(CalendarEntity):
     @property
     def event(self) -> CalendarEvent | None:
         """Return the next upcoming event."""
-        # If entity is disabled, return None (state will be "off")
-        if not self.enabled:
-            return None
-
         now = dt_util.now()
         # Find events that are currently happening or upcoming
         # An event is "current" if now is between start and end (inclusive)
@@ -118,7 +113,7 @@ class GrocyCalendarEntity(CalendarEntity):
         ]
 
         if not current_or_upcoming:
-            # When enabled but no events, return a placeholder event far in the future
+            # When no events, return a placeholder event far in the future
             # This ensures the state shows "on" when the entity is enabled
             future_date = now + timedelta(days=365)
             return CalendarEvent(
@@ -142,26 +137,11 @@ class GrocyCalendarEntity(CalendarEntity):
         # Write state immediately to ensure correct state when enabled
         self.async_write_ha_state()
 
-        # Listen for entity registry updates to detect when entity is enabled/disabled
-        async def _handle_registry_update(event: Event) -> None:
-            """Handle entity registry updates."""
-            if event.data.get("entity_id") == self.entity_id:
-                # Entity was enabled or disabled, update state
-                self.async_write_ha_state()
-
-        self._unsub_registry = self.hass.bus.async_listen(
-            "entity_registry_updated",
-            _handle_registry_update,
-        )
-
     async def async_will_remove_from_hass(self) -> None:
         """When entity will be removed from hass."""
         if self._unsub_update:
             self._unsub_update()
             self._unsub_update = None
-        if self._unsub_registry:
-            self._unsub_registry()
-            self._unsub_registry = None
 
     def _schedule_update(self) -> None:
         """Schedule the next update."""
@@ -178,10 +158,6 @@ class GrocyCalendarEntity(CalendarEntity):
 
     async def _async_update_calendar(self, now: datetime) -> None:
         """Update calendar events periodically."""
-        # Only update if entity is enabled
-        if not self.enabled:
-            return
-
         if not self._ical_url:
             await self._fetch_ical_url()
             if not self._ical_url:
@@ -214,10 +190,6 @@ class GrocyCalendarEntity(CalendarEntity):
         end_date: datetime,
     ) -> list[CalendarEvent]:
         """Get all events in a specific time frame."""
-        # Only fetch events if entity is enabled
-        if not self.enabled:
-            return []
-
         if not self._ical_url:
             await self._fetch_ical_url()
 
