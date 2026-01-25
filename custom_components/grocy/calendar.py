@@ -8,19 +8,13 @@ from datetime import UTC, date, datetime, timedelta
 
 import icalendar
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
-from homeassistant.components.sensor import (
-    SensorEntity,
-    SensorEntityDescription,
-    SensorStateClass,
-)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntryType
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.helpers.typing import StateType
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -56,11 +50,10 @@ async def async_setup_entry(
     async_add_entities([entity], True)
 
 
-class GrocyCalendarEntity(CalendarEntity, SensorEntity):
+class GrocyCalendarEntity(CalendarEntity):
     """Grocy calendar entity definition."""
 
     _attr_entity_registry_enabled_default = False
-    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(
         self,
@@ -90,11 +83,9 @@ class GrocyCalendarEntity(CalendarEntity, SensorEntity):
 
         # Add entity_description for coordinator compatibility
         # (even though calendar doesn't use coordinator data)
-        # Use SensorEntityDescription since we also inherit from SensorEntity
-        self.entity_description = SensorEntityDescription(
+        self.entity_description = EntityDescription(
             key="calendar",
             name="Grocy calendar",
-            native_unit_of_measurement="events",
         )
 
     @property
@@ -107,18 +98,6 @@ class GrocyCalendarEntity(CalendarEntity, SensorEntity):
             sw_version=VERSION,
             entry_type=DeviceEntryType.SERVICE,
         )
-
-    @property
-    def native_value(self) -> StateType:
-        """Return the number of upcoming events."""
-        now = dt_util.now()
-        # Count events that are currently happening or upcoming
-        current_or_upcoming = [
-            event
-            for event in self._events
-            if event.start <= now <= event.end or event.start > now
-        ]
-        return len(current_or_upcoming)
 
     @property
     def event(self) -> CalendarEvent | None:
