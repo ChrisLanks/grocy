@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import icalendar
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
@@ -106,12 +106,9 @@ class GrocyCalendarEntity(CalendarEntity):
         for event in self._events:
             # Event is current if now is between start and end (inclusive)
             # For all-day events, start is 00:00:00 and end is 23:59:59 of the day
-            if event.start <= now <= event.end:
+            if event.start <= now <= event.end or event.start > now:
                 current_or_upcoming.append(event)
-            # Event is upcoming if start is in the future
-            elif event.start > now:
-                current_or_upcoming.append(event)
-        
+
         if not current_or_upcoming:
             return None
         # Return the earliest event (current or upcoming)
@@ -189,9 +186,7 @@ class GrocyCalendarEntity(CalendarEntity):
 
         # Check if we need to refresh events
         should_refresh = False
-        if not self._events:
-            should_refresh = True
-        elif self._last_update is None:
+        if not self._events or self._last_update is None:
             should_refresh = True
         else:
             # Refresh if last update was more than sync interval ago
@@ -218,9 +213,7 @@ class GrocyCalendarEntity(CalendarEntity):
 
         # Filter events to requested time range
         filtered_events = [
-            event
-            for event in self._events
-            if start_date <= event.start <= end_date
+            event for event in self._events if start_date <= event.start <= end_date
         ]
         return filtered_events
 
@@ -235,9 +228,7 @@ class GrocyCalendarEntity(CalendarEntity):
             (base_url, path) = extract_base_url_and_path(url)
 
             if path:
-                api_url = (
-                    f"{base_url}:{port}/{path}/api/calendar/ical/sharing-link"
-                )
+                api_url = f"{base_url}:{port}/{path}/api/calendar/ical/sharing-link"
             else:
                 api_url = f"{base_url}:{port}/api/calendar/ical/sharing-link"
 
@@ -254,15 +245,11 @@ class GrocyCalendarEntity(CalendarEntity):
                     self._ical_url = data.get("url")
                     _LOGGER.debug("Fetched iCal URL: %s", self._ical_url)
                 else:
-                    _LOGGER.error(
-                        "Failed to fetch iCal URL: HTTP %s", response.status
-                    )
+                    _LOGGER.error("Failed to fetch iCal URL: HTTP %s", response.status)
         except Exception as error:
             _LOGGER.error("Error fetching iCal URL: %s", error)
 
-    async def _update_events(
-        self, start_date: datetime, end_date: datetime
-    ) -> None:
+    async def _update_events(self, start_date: datetime, end_date: datetime) -> None:
         """Update events from iCal URL."""
         if not self._ical_url:
             return
@@ -271,9 +258,7 @@ class GrocyCalendarEntity(CalendarEntity):
             session = async_get_clientsession(self.hass)
             async with session.get(self._ical_url) as response:
                 if response.status != 200:
-                    _LOGGER.error(
-                        "Failed to fetch iCal data: HTTP %s", response.status
-                    )
+                    _LOGGER.error("Failed to fetch iCal data: HTTP %s", response.status)
                     return
 
                 ical_data = await response.text()
@@ -292,7 +277,7 @@ class GrocyCalendarEntity(CalendarEntity):
                         description = str(component.get("description", ""))
                         location = str(component.get("location", ""))
                         uid = str(component.get("uid", ""))
-                        
+
                         _LOGGER.debug(
                             "Parsing event '%s': fix_timezone=%s",
                             summary,
@@ -302,10 +287,10 @@ class GrocyCalendarEntity(CalendarEntity):
                         if start:
                             # Check if this is a date-only (all-day) event
                             is_all_day = not isinstance(start.dt, datetime)
-                            
+
                             # Get local timezone
                             local_tz = dt_util.get_time_zone(self.hass.config.time_zone)
-                            
+
                             # Handle both date and datetime
                             if isinstance(start.dt, datetime):
                                 event_start = start.dt
@@ -314,7 +299,7 @@ class GrocyCalendarEntity(CalendarEntity):
                                     # Naive datetime from iCal - typically UTC in iCal format
                                     # Convert from UTC to local timezone
                                     event_start_utc = event_start.replace(
-                                        tzinfo=timezone.utc
+                                        tzinfo=UTC
                                     )
                                     event_start = dt_util.as_local(event_start_utc)
                                 else:
@@ -324,9 +309,12 @@ class GrocyCalendarEntity(CalendarEntity):
                                     original_start = event_start
                                     original_tz = event_start.tzinfo
                                     is_utc = (
-                                        event_start.tzinfo == timezone.utc
+                                        event_start.tzinfo == UTC
                                         or str(event_start.tzinfo) == "UTC"
-                                        or (hasattr(event_start.tzinfo, "zone") and event_start.tzinfo.zone == "UTC")
+                                        or (
+                                            hasattr(event_start.tzinfo, "zone")
+                                            and event_start.tzinfo.zone == "UTC"
+                                        )
                                     )
                                     if self._fix_timezone and is_utc:
                                         # Fix for Grocy addon: Grocy is sending local times marked as UTC
@@ -369,7 +357,7 @@ class GrocyCalendarEntity(CalendarEntity):
                                         # Naive datetime from iCal - typically UTC in iCal format
                                         # Convert from UTC to local timezone
                                         event_end_utc = event_end.replace(
-                                            tzinfo=timezone.utc
+                                            tzinfo=UTC
                                         )
                                         event_end = dt_util.as_local(event_end_utc)
                                     else:
@@ -379,14 +367,19 @@ class GrocyCalendarEntity(CalendarEntity):
                                         original_end = event_end
                                         original_end_tz = event_end.tzinfo
                                         is_end_utc = (
-                                            event_end.tzinfo == timezone.utc
+                                            event_end.tzinfo == UTC
                                             or str(event_end.tzinfo) == "UTC"
-                                            or (hasattr(event_end.tzinfo, "zone") and event_end.tzinfo.zone == "UTC")
+                                            or (
+                                                hasattr(event_end.tzinfo, "zone")
+                                                and event_end.tzinfo.zone == "UTC"
+                                            )
                                         )
                                         if self._fix_timezone and is_end_utc:
                                             # Fix for Grocy addon: Grocy is sending local times marked as UTC
                                             # Treat the UTC time as if it's already in local timezone
-                                            event_end = event_end.replace(tzinfo=local_tz)
+                                            event_end = event_end.replace(
+                                                tzinfo=local_tz
+                                            )
                                             _LOGGER.debug(
                                                 "Event '%s' (end): Fix timezone enabled - treating UTC as local: %s (tz: %s) -> %s (tz: %s), fix_timezone=%s",
                                                 summary,
@@ -428,17 +421,16 @@ class GrocyCalendarEntity(CalendarEntity):
                                             datetime.max.time(),
                                             tzinfo=local_tz,
                                         )
+                            elif is_all_day:
+                                # All-day event with no end - ends at end of start day in local timezone
+                                event_end = datetime.combine(
+                                    start.dt,
+                                    datetime.max.time(),
+                                    tzinfo=local_tz,
+                                )
                             else:
-                                if is_all_day:
-                                    # All-day event with no end - ends at end of start day in local timezone
-                                    event_end = datetime.combine(
-                                        start.dt,
-                                        datetime.max.time(),
-                                        tzinfo=local_tz,
-                                    )
-                                else:
-                                    # If no end time, assume 1 hour duration
-                                    event_end = event_start + timedelta(hours=1)
+                                # If no end time, assume 1 hour duration
+                                event_end = event_start + timedelta(hours=1)
 
                             events.append(
                                 CalendarEvent(

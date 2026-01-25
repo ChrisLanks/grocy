@@ -94,7 +94,10 @@ class GrocyDataUpdateCoordinator(DataUpdateCoordinator[GrocyCoordinatorData]):
                 continue
 
             # Skip calendar entity - it doesn't use coordinator data
-            if not hasattr(entity, "entity_description") or entity.entity_description.key == "calendar":
+            if (
+                not hasattr(entity, "entity_description")
+                or entity.entity_description.key == "calendar"
+            ):
                 continue
 
             try:
