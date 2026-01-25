@@ -9,7 +9,7 @@ from datetime import UTC, date, datetime, timedelta
 import icalendar
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
@@ -73,6 +73,7 @@ class GrocyCalendarEntity(CalendarEntity):
             CONF_CALENDAR_FIX_TIMEZONE, True
         )
         self._unsub_update: Callable[[], None] | None = None
+        self._unsub_registry: Callable[[], None] | None = None
         self._last_update: datetime | None = None
 
         # Entity attributes
@@ -130,6 +131,7 @@ class GrocyCalendarEntity(CalendarEntity):
 
     async def async_added_to_hass(self) -> None:
         """When entity is added to hass."""
+        await super().async_added_to_hass()
         # Fetch iCal URL on startup (don't fail if it errors)
         try:
             await self._fetch_ical_url()
@@ -137,12 +139,29 @@ class GrocyCalendarEntity(CalendarEntity):
             _LOGGER.warning("Error fetching iCal URL during startup: %s", error)
         # Set up periodic updates
         self._schedule_update()
+        # Write state immediately to ensure correct state when enabled
+        self.async_write_ha_state()
+
+        # Listen for entity registry updates to detect when entity is enabled/disabled
+        async def _handle_registry_update(event: Event) -> None:
+            """Handle entity registry updates."""
+            if event.data.get("entity_id") == self.entity_id:
+                # Entity was enabled or disabled, update state
+                self.async_write_ha_state()
+
+        self._unsub_registry = self.hass.bus.async_listen(
+            "entity_registry_updated",
+            _handle_registry_update,
+        )
 
     async def async_will_remove_from_hass(self) -> None:
         """When entity will be removed from hass."""
         if self._unsub_update:
             self._unsub_update()
             self._unsub_update = None
+        if self._unsub_registry:
+            self._unsub_registry()
+            self._unsub_registry = None
 
     def _schedule_update(self) -> None:
         """Schedule the next update."""
