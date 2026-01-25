@@ -82,35 +82,15 @@ class GrocyData:
         def wrapper() -> list[Chore]:
             try:
                 return self.api.chores(True)
-            except (ValueError, TypeError, Exception) as error:  # pylint: disable=broad-except
+            except (ValueError, TypeError) as error:
                 # Handle JSON parsing errors (empty response, invalid JSON)
-                error_type = type(error).__name__
                 error_msg = str(error)
-
-                # Check if it's a JSON parsing error
-                if (
-                    "Expecting value" in error_msg
-                    or "JSON" in error_msg
-                    or "json" in error_msg.lower()
-                ):
-                    _LOGGER.warning(
-                        "Empty or invalid JSON response from Grocy chores API (error type: %s). "
-                        "This usually means: 1) Grocy returned an empty response, "
-                        "2) The chores feature is disabled in Grocy, "
-                        "3) There's a network/authentication issue, or "
-                        "4) Grocy API endpoint returned an error page. "
-                        "Error: %s. Returning empty list.",
-                        error_type,
+                if "Expecting value" in error_msg or "JSON" in error_msg:
+                    _LOGGER.debug(
+                        "Empty or invalid JSON response from Grocy chores API: %s",
                         error_msg,
                     )
                     return []
-
-                # Log other errors for debugging
-                _LOGGER.warning(
-                    "Unexpected error fetching chores from Grocy (error type: %s): %s",
-                    error_type,
-                    error_msg,
-                )
                 raise
 
         return await self.hass.async_add_executor_job(wrapper)
@@ -122,35 +102,15 @@ class GrocyData:
         def wrapper():
             try:
                 return self.api.chores(get_details=True, query_filters=query_filter)
-            except (ValueError, TypeError, Exception) as error:  # pylint: disable=broad-except
+            except (ValueError, TypeError) as error:
                 # Handle JSON parsing errors (empty response, invalid JSON)
-                error_type = type(error).__name__
                 error_msg = str(error)
-
-                # Check if it's a JSON parsing error
-                if (
-                    "Expecting value" in error_msg
-                    or "JSON" in error_msg
-                    or "json" in error_msg.lower()
-                ):
-                    _LOGGER.warning(
-                        "Empty or invalid JSON response from Grocy overdue chores API (error type: %s). "
-                        "This usually means: 1) Grocy returned an empty response, "
-                        "2) The chores feature is disabled in Grocy, "
-                        "3) There's a network/authentication issue, or "
-                        "4) Grocy API endpoint returned an error page. "
-                        "Error: %s. Returning empty list.",
-                        error_type,
+                if "Expecting value" in error_msg or "JSON" in error_msg:
+                    _LOGGER.debug(
+                        "Empty or invalid JSON response from Grocy overdue chores API: %s",
                         error_msg,
                     )
                     return []
-
-                # Log other errors for debugging
-                _LOGGER.warning(
-                    "Unexpected error fetching overdue chores from Grocy (error type: %s): %s",
-                    error_type,
-                    error_msg,
-                )
                 raise
 
         return await self.hass.async_add_executor_job(wrapper)

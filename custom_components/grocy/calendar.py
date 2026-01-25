@@ -51,6 +51,8 @@ async def async_setup_entry(
 class GrocyCalendarEntity(CalendarEntity):
     """Grocy calendar entity definition."""
 
+    _attr_entity_registry_enabled_default = False
+
     def __init__(
         self,
         coordinator: GrocyDataUpdateCoordinator,
@@ -145,6 +147,10 @@ class GrocyCalendarEntity(CalendarEntity):
 
     async def _async_update_calendar(self, now: datetime) -> None:
         """Update calendar events periodically."""
+        # Only update if entity is enabled
+        if not self.enabled:
+            return
+
         if not self._ical_url:
             await self._fetch_ical_url()
             if not self._ical_url:
@@ -177,6 +183,10 @@ class GrocyCalendarEntity(CalendarEntity):
         end_date: datetime,
     ) -> list[CalendarEvent]:
         """Get all events in a specific time frame."""
+        # Only fetch events if entity is enabled
+        if not self.enabled:
+            return []
+
         if not self._ical_url:
             await self._fetch_ical_url()
 
