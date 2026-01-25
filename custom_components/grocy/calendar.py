@@ -8,6 +8,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import icalendar
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -15,6 +16,7 @@ from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.typing import StateType
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -50,10 +52,12 @@ async def async_setup_entry(
     async_add_entities([entity], True)
 
 
-class GrocyCalendarEntity(CalendarEntity):
+class GrocyCalendarEntity(CalendarEntity, SensorEntity):
     """Grocy calendar entity definition."""
 
     _attr_entity_registry_enabled_default = False
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "events"
 
     def __init__(
         self,
@@ -100,6 +104,18 @@ class GrocyCalendarEntity(CalendarEntity):
         )
 
     @property
+    def native_value(self) -> StateType:
+        """Return the number of upcoming events."""
+        now = dt_util.now()
+        # Count events that are currently happening or upcoming
+        current_or_upcoming = [
+            event
+            for event in self._events
+            if event.start <= now <= event.end or event.start > now
+        ]
+        return len(current_or_upcoming)
+
+    @property
     def event(self) -> CalendarEvent | None:
         """Return the next upcoming event."""
         now = dt_util.now()
@@ -113,14 +129,7 @@ class GrocyCalendarEntity(CalendarEntity):
         ]
 
         if not current_or_upcoming:
-            # When no events, return a placeholder event far in the future
-            # This ensures the state shows "on" when the entity is enabled
-            future_date = now + timedelta(days=365)
-            return CalendarEvent(
-                summary="No upcoming events",
-                start=future_date,
-                end=future_date,
-            )
+            return None
         # Return the earliest event (current or upcoming)
         return min(current_or_upcoming, key=lambda e: e.start)
 
