@@ -8,12 +8,16 @@ from datetime import UTC, date, datetime, timedelta
 
 import icalendar
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntryType
-from homeassistant.helpers.entity import DeviceInfo, EntityDescription
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import StateType
@@ -57,7 +61,6 @@ class GrocyCalendarEntity(CalendarEntity, SensorEntity):
 
     _attr_entity_registry_enabled_default = False
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = "events"
 
     def __init__(
         self,
@@ -87,9 +90,11 @@ class GrocyCalendarEntity(CalendarEntity, SensorEntity):
 
         # Add entity_description for coordinator compatibility
         # (even though calendar doesn't use coordinator data)
-        self.entity_description = EntityDescription(
+        # Use SensorEntityDescription since we also inherit from SensorEntity
+        self.entity_description = SensorEntityDescription(
             key="calendar",
             name="Grocy calendar",
+            native_unit_of_measurement="events",
         )
 
     @property
