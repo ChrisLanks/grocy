@@ -98,11 +98,20 @@ class GrocyDataUpdateCoordinator(DataUpdateCoordinator[GrocyCoordinatorData]):
                 not hasattr(entity, "entity_description")
                 or entity.entity_description.key == "calendar"
             ):
+                _LOGGER.debug("Skipping calendar entity in coordinator update")
                 continue
 
             try:
                 entity_key = entity.entity_description.key
-                data[entity_key] = await self.grocy_data.async_update_data(entity_key)
+                result = await self.grocy_data.async_update_data(entity_key)
+                # Log if result is empty (for list-based entities)
+                if isinstance(result, list) and len(result) == 0:
+                    _LOGGER.debug(
+                        "Entity %s (entity_id: %s) returned empty list - this may indicate no data available",
+                        entity_key,
+                        entity.entity_id,
+                    )
+                data[entity_key] = result
             except Exception as error:  # pylint: disable=broad-except
                 entity_key = (
                     entity.entity_description.key

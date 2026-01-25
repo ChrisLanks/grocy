@@ -134,7 +134,14 @@ class GrocyCalendarEntity(CalendarEntity, SensorEntity):
         ]
 
         if not current_or_upcoming:
-            return None
+            # Always return a placeholder event so calendar shows "on" when enabled
+            # This allows the sensor to show the count (0) while calendar is "on"
+            future_date = now + timedelta(days=365)
+            return CalendarEvent(
+                summary="No upcoming events",
+                start=future_date,
+                end=future_date,
+            )
         # Return the earliest event (current or upcoming)
         return min(current_or_upcoming, key=lambda e: e.start)
 
@@ -148,6 +155,13 @@ class GrocyCalendarEntity(CalendarEntity, SensorEntity):
             _LOGGER.warning("Error fetching iCal URL during startup: %s", error)
         # Set up periodic updates
         self._schedule_update()
+        # Trigger immediate update if entity is enabled
+        if self.enabled:
+            _LOGGER.debug(
+                "Calendar entity enabled on startup, triggering immediate update"
+            )
+            # Schedule immediate update in the event loop
+            self.hass.async_create_task(self._async_update_calendar(dt_util.now()))
         # Write state immediately to ensure correct state when enabled
         self.async_write_ha_state()
 
@@ -172,6 +186,11 @@ class GrocyCalendarEntity(CalendarEntity, SensorEntity):
 
     async def _async_update_calendar(self, now: datetime) -> None:
         """Update calendar events periodically."""
+        # Only update if entity is enabled
+        if not self.enabled:
+            _LOGGER.debug("Calendar entity is disabled, skipping update")
+            return
+
         if not self._ical_url:
             await self._fetch_ical_url()
             if not self._ical_url:
