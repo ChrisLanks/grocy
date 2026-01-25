@@ -27,37 +27,51 @@ from .helpers import extract_base_url_and_path
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_migrate_entry(
-    hass: HomeAssistant, config_entry: config_entries.ConfigEntry
-) -> bool:
-    """Migrate old config entries."""
-    version = config_entry.version
-    if version == 1:
-        # Migrate from version 1 to 2: add calendar_sync_interval with default
-        new_data = {**config_entry.data}
-        new_data[CONF_CALENDAR_SYNC_INTERVAL] = DEFAULT_CALENDAR_SYNC_INTERVAL
-        new_data[CONF_CALENDAR_FIX_TIMEZONE] = True
-
-        hass.config_entries.async_update_entry(
-            config_entry, data=new_data, version=2
-        )
-        _LOGGER.info(
-            "Migrated config entry from version %s to version %s",
-            version,
-            2,
-        )
-    return True
-
-
 class GrocyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Grocy."""
 
     VERSION = 2
 
     @staticmethod
+    async def async_migrate_entry(
+        hass: HomeAssistant, config_entry: config_entries.ConfigEntry
+    ) -> bool:
+        """Migrate old config entries."""
+        version = config_entry.version
+        _LOGGER.debug("Migrating config entry from version %s", version)
+
+        new_data = {**config_entry.data}
+        updated = False
+
+        if version == 1:
+            # Migrate from version 1 to 2: add calendar_sync_interval and fix_timezone
+            new_data[CONF_CALENDAR_SYNC_INTERVAL] = DEFAULT_CALENDAR_SYNC_INTERVAL
+            new_data[CONF_CALENDAR_FIX_TIMEZONE] = True
+            updated = True
+            version = 2
+
+        # Migrate old constant name to new one (if present)
+        old_constant = "calendar_fix_datetime_for_addon"
+        if old_constant in new_data:
+            _LOGGER.debug("Migrating old constant name to new one")
+            new_data[CONF_CALENDAR_FIX_TIMEZONE] = new_data.pop(old_constant)
+            updated = True
+
+        if updated:
+            hass.config_entries.async_update_entry(
+                config_entry, data=new_data, version=version
+            )
+            _LOGGER.info(
+                "Migrated config entry to version %s",
+                version,
+            )
+
+        return True
+
+    @staticmethod
     def async_get_options_flow(
-        config_entry: config_entries.ConfigEntry,
-    ) -> "GrocyOptionsFlowHandler":
+        _config_entry: config_entries.ConfigEntry,
+    ) -> GrocyOptionsFlowHandler:
         """Get the options flow for this handler."""
         return GrocyOptionsFlowHandler()
 
@@ -244,6 +258,8 @@ class GrocyOptionsFlowHandler(config_entries.OptionsFlow):
         """Initialize options flow."""
         super().__init__()
         self._errors = {}
+        # config_entry is provided by OptionsFlow base class
+        self.config_entry: config_entries.ConfigEntry  # type: ignore[assignment]
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
@@ -360,8 +376,6 @@ class GrocyOptionsFlowHandler(config_entries.OptionsFlow):
     async def _test_credentials(self, url, api_key, port, verify_ssl):
         """Return true if credentials is valid."""
         try:
-            from .helpers import extract_base_url_and_path
-
             (base_url, path) = extract_base_url_and_path(url)
             client = Grocy(
                 base_url, api_key, port=port, path=path, verify_ssl=verify_ssl
