@@ -101,12 +101,35 @@ class GrocyDataUpdateCoordinator(DataUpdateCoordinator[GrocyCoordinatorData]):
                 continue
 
             try:
-                data[
-                    entity.entity_description.key
-                ] = await self.grocy_data.async_update_data(
-                    entity.entity_description.key
-                )
+                entity_key = entity.entity_description.key
+                _LOGGER.debug("Updating data for entity: %s", entity_key)
+                data[entity_key] = await self.grocy_data.async_update_data(entity_key)
             except Exception as error:  # pylint: disable=broad-except
-                raise UpdateFailed(f"Update failed: {error}") from error
+                entity_key = (
+                    entity.entity_description.key
+                    if hasattr(entity, "entity_description")
+                    else "unknown"
+                )
+                error_msg = str(error)
+                # Check if it's a JSON parsing error
+                if "Expecting value" in error_msg or "JSON" in error_msg:
+                    _LOGGER.warning(
+                        "JSON parsing error for entity %s (entity_id: %s): %s. "
+                        "This may indicate an empty or invalid response from Grocy API.",
+                        entity_key,
+                        entity.entity_id,
+                        error_msg,
+                    )
+                else:
+                    _LOGGER.warning(
+                        "Error updating entity %s (entity_id: %s): %s",
+                        entity_key,
+                        entity.entity_id,
+                        error_msg,
+                    )
+                # Continue with other entities instead of failing completely
+                # Set the failed entity data to None so it doesn't break the coordinator
+                if hasattr(entity, "entity_description"):
+                    data[entity.entity_description.key] = None
 
         return data
