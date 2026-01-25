@@ -298,9 +298,7 @@ class GrocyCalendarEntity(CalendarEntity):
                                 if event_start.tzinfo is None:
                                     # Naive datetime from iCal - typically UTC in iCal format
                                     # Convert from UTC to local timezone
-                                    event_start_utc = event_start.replace(
-                                        tzinfo=UTC
-                                    )
+                                    event_start_utc = event_start.replace(tzinfo=UTC)
                                     event_start = dt_util.as_local(event_start_utc)
                                 else:
                                     # Has timezone info - convert to local timezone
@@ -356,9 +354,7 @@ class GrocyCalendarEntity(CalendarEntity):
                                     if event_end.tzinfo is None:
                                         # Naive datetime from iCal - typically UTC in iCal format
                                         # Convert from UTC to local timezone
-                                        event_end_utc = event_end.replace(
-                                            tzinfo=UTC
-                                        )
+                                        event_end_utc = event_end.replace(tzinfo=UTC)
                                         event_end = dt_util.as_local(event_end_utc)
                                     else:
                                         # Has timezone info - convert to local timezone

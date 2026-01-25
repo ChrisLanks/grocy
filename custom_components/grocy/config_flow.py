@@ -7,7 +7,6 @@ from collections import OrderedDict
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
 from pygrocy2.grocy import Grocy
 
 from .const import (
@@ -31,99 +30,6 @@ class GrocyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Grocy."""
 
     VERSION = 2
-
-    @staticmethod
-    async def async_migrate_entry(
-        hass: HomeAssistant, config_entry: config_entries.ConfigEntry
-    ) -> bool:
-        """Migrate old config entries."""
-        try:
-            current_version = getattr(config_entry, "version", None)
-            _LOGGER.info(
-                "Starting migration for config entry: %s (current version: %s, target version: %s)",
-                config_entry.entry_id,
-                current_version,
-                GrocyFlowHandler.VERSION,
-            )
-
-            # Handle None or missing version - default to 1
-            version = current_version or 1
-            _LOGGER.debug("Config entry data before migration: %s", config_entry.data)
-
-            new_data = {**config_entry.data}
-            updated = False
-            target_version = GrocyFlowHandler.VERSION
-            version_2 = 2
-
-            # Migrate from version 1 to 2
-            if version < version_2:
-                _LOGGER.info(
-                    "Migrating from version %s to version %s", version, version_2
-                )
-                # Add calendar_sync_interval if not present
-                if CONF_CALENDAR_SYNC_INTERVAL not in new_data:
-                    new_data[CONF_CALENDAR_SYNC_INTERVAL] = (
-                        DEFAULT_CALENDAR_SYNC_INTERVAL
-                    )
-                    _LOGGER.debug(
-                        "Added %s: %s",
-                        CONF_CALENDAR_SYNC_INTERVAL,
-                        DEFAULT_CALENDAR_SYNC_INTERVAL,
-                    )
-                # Add fix_timezone if not present
-                if CONF_CALENDAR_FIX_TIMEZONE not in new_data:
-                    new_data[CONF_CALENDAR_FIX_TIMEZONE] = True
-                    _LOGGER.debug("Added %s: %s", CONF_CALENDAR_FIX_TIMEZONE, True)
-                updated = True
-                version = version_2
-
-            # Migrate old constant name to new one (if present)
-            old_constant = "calendar_fix_datetime_for_addon"
-            if old_constant in new_data:
-                _LOGGER.info(
-                    "Migrating old constant name '%s' to '%s'",
-                    old_constant,
-                    CONF_CALENDAR_FIX_TIMEZONE,
-                )
-                new_data[CONF_CALENDAR_FIX_TIMEZONE] = new_data.pop(old_constant)
-                updated = True
-
-            # Ensure we're at the target version
-            if version < target_version:
-                _LOGGER.warning(
-                    "Config entry version %s is less than target version %s, updating",
-                    version,
-                    target_version,
-                )
-                version = target_version
-                updated = True
-
-            if updated:
-                _LOGGER.info(
-                    "Updating config entry to version %s with data: %s",
-                    version,
-                    new_data,
-                )
-                hass.config_entries.async_update_entry(
-                    config_entry, data=new_data, version=version
-                )
-                _LOGGER.info(
-                    "Successfully migrated config entry from version %s to version %s",
-                    current_version,
-                    version,
-                )
-            else:
-                _LOGGER.debug(
-                    "No migration needed for config entry (version %s)", version
-                )
-
-            return True
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception(
-                "Error during migration of config entry %s",
-                config_entry.entry_id,
-            )
-            return False
 
     @staticmethod
     def async_get_options_flow(
